@@ -2,7 +2,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 import json
 
-# 画面幅を広く使う設定
+# 画面幅を最大限広く使う設定
 st.set_page_config(layout="wide")
 
 # --- 1. JRA基準の18頭立て枠順割当 ---
@@ -39,7 +39,7 @@ for i in range(1, 19):
 # JavaScriptに渡すためにJSON文字列に変換
 horses_json = json.dumps(horses_data)
 
-# --- 2. 横長コース ＆ 縦画面対応HTML/JS ---
+# --- 2. コース幅広版 HTML/JS ---
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -56,34 +56,33 @@ html_code = f"""
         -webkit-user-select: none;
         user-select: none;
     }}
-    /* 【バグ根本修正】画面幅(100%)に合わせて自動縮小し、絶対に画面からはみ出さない横長コース */
     #course-container {{
         position: relative;
         width: 96vw;
-        max-width: 800px;  /* PCで見ても大きすぎないサイズ */
-        aspect-ratio: 2.2 / 1; /* 横長トラックの黄金比率を強制維持 */
+        max-width: 800px;
+        aspect-ratio: 2.2 / 1;
         background-color: #e2f0d9; /* 芝の緑色 */
-        border: 3.5px solid #444;
-        border-radius: 1000px; /* 綺麗なオーバルコース */
+        border: 4px solid #444;
+        border-radius: 1000px;
         box-shadow: inset 0 0 15px rgba(0,0,0,0.1);
         margin: 10px auto;
         overflow: hidden;
         box-sizing: border-box;
     }}
-    /* 内馬場（中央の白枠） */
+    /* 【修正】内馬場（中央の白枠）を狭くして、緑のレーンを太く */
     .inner-field {{
         position: absolute;
-        top: 24%;
-        left: 16%;
-        right: 16%;
-        bottom: 24%;
+        top: 34%;      /* 24%から34%に広げて上下のコースを太く */
+        bottom: 34%;
+        left: 23%;     /* 16%から23%に広げて左右のカーブを太く */
+        right: 23%;
         background-color: #ffffff;
         border: 2.5px solid #444;
         border-radius: 1000px;
         z-index: 1;
         box-sizing: border-box;
     }}
-    /* 馬番ピン（スマホ画面の縮小に合わせてサイズを最適化） */
+    /* 馬番ピン */
     .horse-pin {{
         position: absolute;
         cursor: move;
@@ -102,7 +101,7 @@ html_code = f"""
         box-sizing: border-box;
     }}
     .horse-pin:active {{
-        transform: scale(1.4); /* 指で触った時に隠れないよう大きく拡大 */
+        transform: scale(1.4);
         z-index: 100;
     }}
 </style>
@@ -122,10 +121,10 @@ html_code = f"""
         const div = document.createElement('div');
         div.className = 'horse-pin';
         
-        // --- 【配置変更】白枠からはみ出た「コース下側の直線」に2列で横並び ---
-        const col = Math.floor(index / 2); // 0〜8の9カラム
-        const percentX = 12 + (col * 8.6); // 横方向に綺麗に分散
-        const percentY = (index % 2 === 0) ? 78 : 88; // 偶数・奇数で上下2列に分ける
+        // --- 【配置調整】太くなった下側直線レーン（66%〜100%のエリア）に綺麗に並べる ---
+        const col = Math.floor(index / 2);
+        const percentX = 24 + (col * 6.5);   /* 直線部分の幅に合わせて横の間隔を調整 */
+        const percentY = (index % 2 === 0) ? 72 : 86; /* 広がったコース内でバランスよく2列に配置 */
 
         div.style.left = percentX + '%';
         div.style.top = percentY + '%';
@@ -135,7 +134,7 @@ html_code = f"""
         
         container.appendChild(div);
         
-        // ドラッグ＆ドロップ制御（1/4バグを完全解消）
+        // ドラッグ＆ドロップ制御
         let isDragging = false;
         let startX, startY;
         let startLeft, startTop;
@@ -145,7 +144,6 @@ html_code = f"""
             startX = e.clientX;
             startY = e.clientY;
             
-            // タッチした瞬間にピクセル単位の絶対座標に固定
             startLeft = div.offsetLeft;
             startTop = div.offsetTop;
             div.style.left = startLeft + 'px';
@@ -162,11 +160,9 @@ html_code = f"""
             let newX = startLeft + dx;
             let newY = startTop + dy;
             
-            // スマホ画面に縮小された現在のコースサイズをリアルタイム取得
             const currentWidth = container.clientWidth;
             const currentHeight = container.clientHeight;
             
-            // コース全体の全域（緑色部分含む）で自由に動かせるように制限
             if(newX < 0) newX = 0;
             if(newX > currentWidth - div.clientWidth) newX = currentWidth - div.clientWidth;
             if(newY < 0) newY = 0;
@@ -188,5 +184,5 @@ html_code = f"""
 </html>
 """
 
-# Streamlit側の表示高さを横長コースに最適化
+# Streamlit側の表示高さ
 components.html(html_code, height=380, scrolling=False)
