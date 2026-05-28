@@ -2,8 +2,8 @@ import streamlit as st
 import streamlit.components.v1 as components
 import json
 
-# 縦型レイアウトのため、ページ全体を中央寄せに設定
-st.set_page_config(layout="centered")
+# 画面幅を広く使う設定
+st.set_page_config(layout="wide")
 
 # --- 1. JRA基準の18頭立て枠順割当 ---
 WAKU_COLORS = {
@@ -39,7 +39,7 @@ for i in range(1, 19):
 # JavaScriptに渡すためにJSON文字列に変換
 horses_json = json.dumps(horses_data)
 
-# --- 2. 縦画面専用・縦型コースのHTML/JS ---
+# --- 2. 横長コース ＆ 縦画面対応HTML/JS ---
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -56,55 +56,53 @@ html_code = f"""
         -webkit-user-select: none;
         user-select: none;
     }}
-    /* 【縦画面最適化】スマホの縦長画面に合わせた縦型オーバルトラック */
+    /* 【バグ根本修正】画面幅(100%)に合わせて自動縮小し、絶対に画面からはみ出さない横長コース */
     #course-container {{
         position: relative;
-        width: 94vw;
-        max-width: 420px; /* PC閲覧時にも巨大化させない上限 */
-        height: 76vh;
-        max-height: 620px; /* 一般的なスマホ画面にすっぽり収まる高さ */
+        width: 96vw;
+        max-width: 800px;  /* PCで見ても大きすぎないサイズ */
+        aspect-ratio: 2.2 / 1; /* 横長トラックの黄金比率を強制維持 */
         background-color: #e2f0d9; /* 芝の緑色 */
-        border: 4px solid #444;
-        border-radius: 120px; /* 縦長の楕円を形成 */
-        box-shadow: inset 0 0 20px rgba(0,0,0,0.1);
-        margin: 5px auto;
+        border: 3.5px solid #444;
+        border-radius: 1000px; /* 綺麗なオーバルコース */
+        box-shadow: inset 0 0 15px rgba(0,0,0,0.1);
+        margin: 10px auto;
         overflow: hidden;
         box-sizing: border-box;
     }}
-    /* 縦長の内馬場 */
+    /* 内馬場（中央の白枠） */
     .inner-field {{
         position: absolute;
-        top: 16%;
-        left: 22%;
-        right: 22%;
-        bottom: 16%;
+        top: 24%;
+        left: 16%;
+        right: 16%;
+        bottom: 24%;
         background-color: #ffffff;
-        border: 3px solid #444;
-        border-radius: 70px;
+        border: 2.5px solid #444;
+        border-radius: 1000px;
         z-index: 1;
         box-sizing: border-box;
     }}
-    /* 馬番ピン（丸数字） */
+    /* 馬番ピン（スマホ画面の縮小に合わせてサイズを最適化） */
     .horse-pin {{
         position: absolute;
         cursor: move;
         z-index: 10;
         touch-action: none;
-        width: 32px;
-        height: 32px;
+        width: 25px;
+        height: 25px;
         border-radius: 50%;
-        border: 2px solid #222;
+        border: 1.5px solid #222;
         display: flex;
         justify-content: center;
         align-items: center;
         font-weight: bold;
-        font-size: 16px;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
-        transition: transform 0.05s ease;
+        font-size: 13px;
+        box-shadow: 1px 1px 4px rgba(0,0,0,0.3);
         box-sizing: border-box;
     }}
     .horse-pin:active {{
-        transform: scale(1.3); /* タッチした瞬間に一回り大きくして指での視認性をUP */
+        transform: scale(1.4); /* 指で触った時に隠れないよう大きく拡大 */
         z-index: 100;
     }}
 </style>
@@ -124,14 +122,10 @@ html_code = f"""
         const div = document.createElement('div');
         div.className = 'horse-pin';
         
-        // 【縦長中央配置】3列 × 6行 のグリッドで内馬場に綺麗に並べる
-        const cols = 3;
-        const r = Math.floor(index / cols);
-        const c = index % cols;
-        
-        // 縦長エリアのバランスに合わせたパーセンテージ位置
-        const percentX = 32 + (c * 15); 
-        const percentY = 22 + (r * 9);
+        // --- 【配置変更】白枠からはみ出た「コース下側の直線」に2列で横並び ---
+        const col = Math.floor(index / 2); // 0〜8の9カラム
+        const percentX = 12 + (col * 8.6); // 横方向に綺麗に分散
+        const percentY = (index % 2 === 0) ? 78 : 88; // 偶数・奇数で上下2列に分ける
 
         div.style.left = percentX + '%';
         div.style.top = percentY + '%';
@@ -141,7 +135,7 @@ html_code = f"""
         
         container.appendChild(div);
         
-        // ドラッグ＆ドロップ制御（指の動きに追従）
+        // ドラッグ＆ドロップ制御（1/4バグを完全解消）
         let isDragging = false;
         let startX, startY;
         let startLeft, startTop;
@@ -151,7 +145,7 @@ html_code = f"""
             startX = e.clientX;
             startY = e.clientY;
             
-            // ドラッグ開始時に確実なピクセル座標に固定
+            // タッチした瞬間にピクセル単位の絶対座標に固定
             startLeft = div.offsetLeft;
             startTop = div.offsetTop;
             div.style.left = startLeft + 'px';
@@ -168,15 +162,15 @@ html_code = f"""
             let newX = startLeft + dx;
             let newY = startTop + dy;
             
-            // 現在の縦長コンテナのサイズをリアルタイムに取得（バグ防止）
-            const currentContainerWidth = container.clientWidth;
-            const currentContainerHeight = container.clientHeight;
+            // スマホ画面に縮小された現在のコースサイズをリアルタイム取得
+            const currentWidth = container.clientWidth;
+            const currentHeight = container.clientHeight;
             
-            // コースの全境界（上下左右）でのハズレ防止制限
+            // コース全体の全域（緑色部分含む）で自由に動かせるように制限
             if(newX < 0) newX = 0;
-            if(newX > currentContainerWidth - div.clientWidth) newX = currentContainerWidth - div.clientWidth;
+            if(newX > currentWidth - div.clientWidth) newX = currentWidth - div.clientWidth;
             if(newY < 0) newY = 0;
-            if(newY > currentContainerHeight - div.clientHeight) newY = currentContainerHeight - div.clientHeight;
+            if(newY > currentHeight - div.clientHeight) newY = currentHeight - div.clientHeight;
             
             div.style.left = newX + 'px';
             div.style.top = newY + 'px';
@@ -194,5 +188,5 @@ html_code = f"""
 </html>
 """
 
-# Streamlit上の表示コンテナを高さを合わせて設置
-components.html(html_code, height=640, scrolling=False)
+# Streamlit側の表示高さを横長コースに最適化
+components.html(html_code, height=380, scrolling=False)
