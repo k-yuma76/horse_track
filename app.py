@@ -2,8 +2,8 @@ import streamlit as st
 import streamlit.components.v1 as components
 import json
 
-# 画面幅を最大限広く使う設定
-st.set_page_config(layout="wide")
+# 縦型レイアウトのため、ページ全体を中央寄せに設定
+st.set_page_config(layout="centered")
 
 # --- 1. JRA基準の18頭立て枠順割当 ---
 WAKU_COLORS = {
@@ -39,7 +39,7 @@ for i in range(1, 19):
 # JavaScriptに渡すためにJSON文字列に変換
 horses_json = json.dumps(horses_data)
 
-# --- 2. レスポンシブ・バグ修正版のHTML/JS ---
+# --- 2. 縦画面専用・縦型コースのHTML/JS ---
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -51,40 +51,40 @@ html_code = f"""
         margin: 0;
         padding: 0;
         background-color: transparent;
-        overflow-x: auto; /* 縦画面時は横スクロールを許可し、縮小を防止 */
-        overflow-y: hidden;
+        overflow: hidden;
         -webkit-touch-callout: none;
         -webkit-user-select: none;
         user-select: none;
     }}
-    /* コース全体：横向きサイズをデフォルト基準にする */
+    /* 【縦画面最適化】スマホの縦長画面に合わせた縦型オーバルトラック */
     #course-container {{
         position: relative;
-        width: 96vw;
-        min-width: 800px; /* スマホ縦画面でも小さく縮小させない */
-        height: 420px;   /* 高さを固定して安定化 */
+        width: 94vw;
+        max-width: 420px; /* PC閲覧時にも巨大化させない上限 */
+        height: 76vh;
+        max-height: 620px; /* 一般的なスマホ画面にすっぽり収まる高さ */
         background-color: #e2f0d9; /* 芝の緑色 */
         border: 4px solid #444;
-        border-radius: 210px;
+        border-radius: 120px; /* 縦長の楕円を形成 */
         box-shadow: inset 0 0 20px rgba(0,0,0,0.1);
         margin: 5px auto;
         overflow: hidden;
         box-sizing: border-box;
     }}
-    /* 内馬場 */
+    /* 縦長の内馬場 */
     .inner-field {{
         position: absolute;
-        top: 100px;
-        left: 140px;
-        right: 140px;
-        bottom: 100px;
+        top: 16%;
+        left: 22%;
+        right: 22%;
+        bottom: 16%;
         background-color: #ffffff;
         border: 3px solid #444;
-        border-radius: 110px;
+        border-radius: 70px;
         z-index: 1;
         box-sizing: border-box;
     }}
-    /* 馬番ピン */
+    /* 馬番ピン（丸数字） */
     .horse-pin {{
         position: absolute;
         cursor: move;
@@ -104,7 +104,7 @@ html_code = f"""
         box-sizing: border-box;
     }}
     .horse-pin:active {{
-        transform: scale(1.25);
+        transform: scale(1.3); /* タッチした瞬間に一回り大きくして指での視認性をUP */
         z-index: 100;
     }}
 </style>
@@ -119,17 +119,19 @@ html_code = f"""
     const horses = {horses_json};
     const container = document.getElementById('course-container');
 
-    // 馬番号ピンの生成と配置
+    // 馬番号ピンの生成と初期配置
     horses.forEach((horse, index) => {{
         const div = document.createElement('div');
         div.className = 'horse-pin';
         
-        // 初期状態は％（パーセンテージ）で内馬場の中央に綺麗に整列
-        const cols = 6;
+        // 【縦長中央配置】3列 × 6行 のグリッドで内馬場に綺麗に並べる
+        const cols = 3;
         const r = Math.floor(index / cols);
         const c = index % cols;
-        const percentX = 32 + (c * 6); 
-        const percentY = 32 + (r * 12);
+        
+        // 縦長エリアのバランスに合わせたパーセンテージ位置
+        const percentX = 32 + (c * 15); 
+        const percentY = 22 + (r * 9);
 
         div.style.left = percentX + '%';
         div.style.top = percentY + '%';
@@ -139,7 +141,7 @@ html_code = f"""
         
         container.appendChild(div);
         
-        // ドラッグ＆ドロップ制御
+        // ドラッグ＆ドロップ制御（指の動きに追従）
         let isDragging = false;
         let startX, startY;
         let startLeft, startTop;
@@ -149,7 +151,7 @@ html_code = f"""
             startX = e.clientX;
             startY = e.clientY;
             
-            // ドラッグ開始瞬間に、％配置から確定したpx配置に切り替える
+            // ドラッグ開始時に確実なピクセル座標に固定
             startLeft = div.offsetLeft;
             startTop = div.offsetTop;
             div.style.left = startLeft + 'px';
@@ -166,11 +168,11 @@ html_code = f"""
             let newX = startLeft + dx;
             let newY = startTop + dy;
             
-            // 【バグ修正】画面の回転・サイズ変更に対応するため、現在のコンテナサイズをリアルタイム取得
+            // 現在の縦長コンテナのサイズをリアルタイムに取得（バグ防止）
             const currentContainerWidth = container.clientWidth;
             const currentContainerHeight = container.clientHeight;
             
-            // コースの枠外へのはみ出し防止
+            // コースの全境界（上下左右）でのハズレ防止制限
             if(newX < 0) newX = 0;
             if(newX > currentContainerWidth - div.clientWidth) newX = currentContainerWidth - div.clientWidth;
             if(newY < 0) newY = 0;
@@ -192,5 +194,5 @@ html_code = f"""
 </html>
 """
 
-# 表示領域の高さ設定
-components.html(html_code, height=440, scrolling=False)
+# Streamlit上の表示コンテナを高さを合わせて設置
+components.html(html_code, height=640, scrolling=False)
