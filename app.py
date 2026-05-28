@@ -5,17 +5,24 @@ import json
 # 画面幅を広く使う設定
 st.set_page_config(layout="wide")
 
-# --- 【新機能】Streamlit自体の左右マージンを限界までゼロにする注入CSS ---
+# --- 【修正】アプリ全体を画面の上下左右の「完全中央」に配置する注入CSS ---
 st.markdown("""
     <style>
-        /* アプリ全体のパディング（余白）を極限まで削る */
-        .block-container {
+        /* 画面全体の縦幅を使って、中身を上下中央寄せにする */
+        .main .block-container {
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: center !important;
+            min-height: 85vh !important; /* スマホ画面の高さの85%を使って中央寄せ */
             padding-left: 0.3rem !important;
             padding-right: 0.3rem !important;
-            padding-top: 0.5rem !important;
+            padding-top: 0rem !important;
             padding-bottom: 0rem !important;
         }
-        /* 不要な要素の隙間を排除 */
+        /* Streamlitの上部メニューバー等の余白をリセット */
+        header {
+            visibility: hidden;
+        }
         iframe {
             display: block;
             margin: 0 auto;
@@ -74,7 +81,6 @@ html_code = f"""
         -webkit-user-select: none;
         user-select: none;
     }}
-    /* 【修正】widthを96vwから99vwに広げ、画面の左右端ぴったりに配置 */
     #course-container {{
         position: relative;
         width: 99vw;
@@ -140,7 +146,6 @@ html_code = f"""
         const div = document.createElement('div');
         div.className = 'horse-pin';
         
-        // 下側直線レーンに綺麗に並べる（コース幅が広がったので左右の余白を12%から6%に詰めて最適化）
         const col = Math.floor(index / 2);
         const percentX = 6 + (col * 10); 
         const percentY = (index % 2 === 0) ? 72 : 86;
@@ -203,5 +208,5 @@ html_code = f"""
 </html>
 """
 
-# Streamlit側の表示枠のサイズ
+# 表示枠サイズ（上下中央に寄せるため、iframe自体の高さを確保）
 components.html(html_code, height=380, scrolling=False)
