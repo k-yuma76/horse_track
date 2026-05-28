@@ -2,8 +2,26 @@ import streamlit as st
 import streamlit.components.v1 as components
 import json
 
-# 画面幅を最大限広く使う設定
+# 画面幅を広く使う設定
 st.set_page_config(layout="wide")
+
+# --- 【新機能】Streamlit自体の左右マージンを限界までゼロにする注入CSS ---
+st.markdown("""
+    <style>
+        /* アプリ全体のパディング（余白）を極限まで削る */
+        .block-container {
+            padding-left: 0.3rem !important;
+            padding-right: 0.3rem !important;
+            padding-top: 0.5rem !important;
+            padding-bottom: 0rem !important;
+        }
+        /* 不要な要素の隙間を排除 */
+        iframe {
+            display: block;
+            margin: 0 auto;
+        }
+    </style>
+""", unsafe_allow_html=True)
 
 # --- 1. JRA基準の18頭立て枠順割当 ---
 WAKU_COLORS = {
@@ -39,7 +57,7 @@ for i in range(1, 19):
 # JavaScriptに渡すためにJSON文字列に変換
 horses_json = json.dumps(horses_data)
 
-# --- 2. コース幅広版 HTML/JS ---
+# --- 2. 画面端ギリギリ・コース幅広版 HTML/JS ---
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -56,25 +74,26 @@ html_code = f"""
         -webkit-user-select: none;
         user-select: none;
     }}
+    /* 【修正】widthを96vwから99vwに広げ、画面の左右端ぴったりに配置 */
     #course-container {{
         position: relative;
-        width: 96vw;
-        max-width: 800px;
+        width: 99vw;
+        max-width: 100%;
         aspect-ratio: 2.2 / 1;
         background-color: #e2f0d9; /* 芝の緑色 */
         border: 4px solid #444;
         border-radius: 1000px;
         box-shadow: inset 0 0 15px rgba(0,0,0,0.1);
-        margin: 10px auto;
+        margin: 0 auto;
         overflow: hidden;
         box-sizing: border-box;
     }}
-    /* 【修正】内馬場（中央の白枠）を狭くして、緑のレーンを太く */
+    /* 内馬場（中央の白枠） */
     .inner-field {{
         position: absolute;
-        top: 34%;      /* 24%から34%に広げて上下のコースを太く */
+        top: 34%;
         bottom: 34%;
-        left: 23%;     /* 16%から23%に広げて左右のカーブを太く */
+        left: 23%;
         right: 23%;
         background-color: #ffffff;
         border: 2.5px solid #444;
@@ -121,10 +140,10 @@ html_code = f"""
         const div = document.createElement('div');
         div.className = 'horse-pin';
         
-        // --- 【配置調整】太くなった下側直線レーン（66%〜100%のエリア）に綺麗に並べる ---
+        // 下側直線レーンに綺麗に並べる（コース幅が広がったので左右の余白を12%から6%に詰めて最適化）
         const col = Math.floor(index / 2);
-        const percentX = 24 + (col * 6.5);   /* 直線部分の幅に合わせて横の間隔を調整 */
-        const percentY = (index % 2 === 0) ? 72 : 86; /* 広がったコース内でバランスよく2列に配置 */
+        const percentX = 6 + (col * 10); 
+        const percentY = (index % 2 === 0) ? 72 : 86;
 
         div.style.left = percentX + '%';
         div.style.top = percentY + '%';
@@ -184,5 +203,5 @@ html_code = f"""
 </html>
 """
 
-# Streamlit側の表示高さ
+# Streamlit側の表示枠のサイズ
 components.html(html_code, height=380, scrolling=False)
